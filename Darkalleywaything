@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Updated Admin Panel</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@picocss/pico@1/css/pico.min.css">
+  <style>
+    .hidden { display: none; }
+    .msg { margin-top: 1rem; font-weight: bold; }
+    #logs { max-height: 200px; overflow-y: auto; font-size: 0.9rem; }
+  </style>
+</head>
+<body>
+<nav class="container-fluid">
+  <ul><li><strong>Staff Manager</strong></li></ul>
+  <ul>
+    <li><a href="#">Home</a></li>
+    <li id="logoutBtn" class="hidden"><a href="#" role="button" onclick="logout()">Logout</a></li>
+  </ul>
+</nav>
+
+<main class="container">
+  <section>
+    <hgroup>
+      <h2>Login</h2>
+      <h3>Access your account</h3>
+    </hgroup>
+    <form id="loginForm">
+      <input type="text" id="loginName" placeholder="Full Name" required />
+      <input type="password" id="loginPass" placeholder="Password" required />
+      <button type="submit">Login</button>
+    </form>
+    <p id="loginMessage" class="msg"></p>
+
+    <div id="adminPanel" class="hidden">
+      <h3>🛡️ Admin Only Panel</h3>
+
+      <form id="addAdminForm">
+        <input type="text" id="newAdminName" placeholder="New Admin Name" required />
+        <input type="password" id="newAdminPass" placeholder="Password for Admin" required />
+        <button>Add Admin</button>
+      </form>
+
+      <form id="removeAdminForm">
+        <input type="text" id="removeAdminName" placeholder="Admin to Remove" required />
+        <button>Remove Admin</button>
+      </form>
+
+      <form id="addStaffForm">
+        <input type="text" id="staffName" placeholder="Staff Name" required />
+        <input type="password" id="staffPass" placeholder="Password" required />
+        <input type="text" id="staffRole" placeholder="Role (e.g. 🌱 Trainee)" required />
+        <button>Add Staff</button>
+      </form>
+
+      <form id="rankForm">
+        <input type="text" id="targetName" placeholder="Name to Rank/Derank" required />
+        <input type="text" id="newRole" placeholder="New Role" required />
+        <input type="text" id="reason" placeholder="Reason for change" required />
+        <button>Change Role</button>
+      </form>
+
+      <details>
+        <summary>📋 View Current Staff</summary>
+        <ul id="staffList"></ul>
+      </details>
+
+      <details>
+        <summary>🚫 View Banned Users</summary>
+        <ul id="bannedList"></ul>
+      </details>
+
+      <details>
+        <summary>📝 Logs</summary>
+        <ul id="logs"></ul>
+      </details>
+    </div>
+  </section>
+</main>
+
+<script>
+let staffList = JSON.parse(localStorage.getItem('staff') || '[]');
+let bannedList = JSON.parse(localStorage.getItem('bannedUsers') || '[]');
+let logs = JSON.parse(localStorage.getItem('logs') || '[]');
+const logoutBtn = document.getElementById('logoutBtn');
+const loginMessage = document.getElementById('loginMessage');
+const adminPanel = document.getElementById('adminPanel');
+const logsList = document.getElementById('logs');
+const staffListEl = document.getElementById('staffList');
+const bannedListEl = document.getElementById('bannedList');
+
+function saveData() {
+  localStorage.setItem('staff', JSON.stringify(staffList));
+  localStorage.setItem('bannedUsers', JSON.stringify(bannedList));
+  localStorage.setItem('logs', JSON.stringify(logs));
+}
+
+function logAction(msg) {
+  const entry = `${new Date().toLocaleString()} - ${msg}`;
+  logs.unshift(entry);
+  saveData();
+  updateLogs();
+}
+
+function updateLogs() {
+  logsList.innerHTML = logs.map(l => `<li>${l}</li>`).join('');
+}
+
+function updateStaffList() {
+  staffListEl.innerHTML = staffList.map(s => `<li>${s.name} (${s.role})</li>`).join('');
+  bannedListEl.innerHTML = bannedList.map(b => `<li>${b}</li>`).join('');
+}
+
+function logout() {
+  logoutBtn.classList.add('hidden');
+  adminPanel.classList.add('hidden');
+  loginMessage.textContent = '';
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('loginForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+
+    const name = document.getElementById('loginName').value.trim();
+    const pass = document.getElementById('loginPass').value;
+
+    if (bannedList.includes(name)) {
+      loginMessage.textContent = '❌ You are banned.';
+      return;
+    }
+
+    if (name === 'Reuben Hantsche' && pass === 'Reuben11@!') {
+      loginMessage.textContent = '✅ Logged in as Owner. Please scroll down.';
+      logoutBtn.classList.remove('hidden');
+      adminPanel.classList.remove('hidden');
+      updateLogs();
+      updateStaffList();
+      return;
+    }
+
+    const user = staffList.find(u => u.name === name);
+
+    if (!user || !user.pass) {
+      loginMessage.textContent = '❌ User not found or missing password.';
+      return;
+    }
+
+    if (user.pass !== pass) {
+      loginMessage.textContent = '❌ Password was incorrect.';
+      return;
+    }
+
+    loginMessage.textContent = '✅ Password is correct, please scroll down.';
+    logoutBtn.classList.remove('hidden');
+  });
+
+  document.getElementById('addStaffForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const name = document.getElementById('staffName').value.trim();
+    const pass = document.getElementById('staffPass').value;
+    const role = document.getElementById('staffRole').value.trim();
+    staffList.push({ name, pass, role });
+    saveData();
+    updateStaffList();
+    logAction(`Added staff: ${name} - ${role}`);
+    alert('Staff added');
+  });
+
+  document.getElementById('addAdminForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const name = document.getElementById('newAdminName').value.trim();
+    const pass = document.getElementById('newAdminPass').value;
+    staffList.push({ name, pass, role: '🛡️ Admin' });
+    saveData();
+    updateStaffList();
+    logAction(`Added admin: ${name}`);
+    alert('Admin added');
+  });
+
+  document.getElementById('removeAdminForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const name = document.getElementById('removeAdminName').value.trim();
+    const index = staffList.findIndex(u => u.name === name && u.role === '🛡️ Admin');
+    if (index !== -1) {
+      staffList.splice(index, 1);
+      saveData();
+      updateStaffList();
+      logAction(`Removed admin: ${name}`);
+      alert('Admin removed');
+    } else {
+      alert('Admin not found');
+    }
+  });
+
+  document.getElementById('rankForm').addEventListener('submit', function (e) {
+    e.preventDefault();
+    const name = document.getElementById('targetName').value.trim();
+    const newRole = document.getElementById('newRole').value.trim();
+    const reason = document.getElementById('reason').value.trim();
+    const target = staffList.find(s => s.name === name);
+    if (!target) return alert('User not found');
+    target.role = newRole;
+    saveData();
+    updateStaffList();
+    logAction(`Rank change: ${name} → ${newRole} — Reason: ${reason}`);
+    alert('Role updated');
+  });
+});
+</script>
+</body>
+</html>
